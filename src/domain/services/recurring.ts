@@ -25,14 +25,16 @@ export function buildRecurringEntry(
   const dueDate = recurringDueDate(year, monthIndex, recurring.dueDay);
   const due = new Date(`${dueDate}T12:00:00`);
   const paid = due < reference;
+  const isIncome =
+    recurring.description?.includes("[receita]") || recurring.description?.includes("[income]");
 
   return {
     name: recurring.name,
-    description: recurring.description,
+    description: recurring.description.replace("[receita]", "").replace("[income]", "").trim(),
     amount: recurring.amount,
     dueDate,
     paymentDate: paid ? dueDate : null,
-    type: "expense",
+    type: isIncome ? "income" : "expense",
     status: paid ? "paid" : "pending",
     responsible: recurring.responsible,
     category: recurring.category,

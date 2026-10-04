@@ -10,7 +10,7 @@ import { usePaymentHistory } from "@/hooks/use-finances";
 import { formatCurrency, formatDate, formatMonthYear } from "@/lib/format";
 import { COMMITMENT_KIND_LABELS } from "@/domain/value-objects/commitments";
 
-const MONTHS = ["", "2026-06", "2026-07", "2026-08", "2026-09"];
+import { AVAILABLE_MONTHS } from "@/constants/months";
 
 export function HistoryView() {
   const [month, setMonth] = useState("");
@@ -18,10 +18,13 @@ export function HistoryView() {
 
   return (
     <div className="space-y-5">
-      <DashboardHeader title="Histórico de pagamentos" subtitle="Tudo o que já foi baixado, mês a mês." />
+      <DashboardHeader
+        title="Histórico de pagamentos"
+        subtitle="Tudo o que já foi baixado, mês a mês."
+      />
       <Select value={month} onChange={(event) => setMonth(event.target.value)}>
         <option value="">Todos os meses</option>
-        {MONTHS.filter(Boolean).map((item) => (
+        {AVAILABLE_MONTHS.map((item) => (
           <option key={item} value={item}>
             {formatMonthYear(`${item}-01`)}
           </option>
@@ -42,7 +45,9 @@ export function HistoryView() {
               </div>
               <div className="text-right">
                 <Badge tone="success">Pago</Badge>
-                <p className="mt-1 text-xs text-muted-foreground">{COMMITMENT_KIND_LABELS[item.kind]}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {COMMITMENT_KIND_LABELS[item.kind]}
+                </p>
                 <p className="tabular text-sm font-semibold">{formatCurrency(item.amount)}</p>
               </div>
             </Card>

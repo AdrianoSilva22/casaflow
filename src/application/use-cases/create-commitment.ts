@@ -59,9 +59,15 @@ export async function createCommitment(
 
   if (input.commitmentKind === "recurring") {
     const dueDay = input.dueDay || Number(input.dueDate.slice(8, 10)) || 10;
+    const isIncome = input.type === "income";
+    const descWithTag =
+      isIncome && !input.description.includes("[receita]")
+        ? `${input.description} [receita]`.trim()
+        : input.description;
+
     const recurring = await commitmentsRepo.createRecurring({
       name: input.name,
-      description: input.description,
+      description: descWithTag,
       amount: input.amount,
       dueDay,
       category: input.category,
@@ -75,10 +81,38 @@ export async function createCommitment(
     const drafts = missingRecurringEntries([recurring], [], start, addMonths(start, 1), reference);
     let first: FinancialEntry | null = null;
     for (const draft of drafts) {
-      const created = await entriesRepo.create(draft);
+      const created = await entriesRepo.create({
+        ...draft,
+        type: input.type,
+      });
       if (!first) first = created;
     }
-    return first!;
+
+    if (!first) {
+      const fallbackDueDate = format(
+        new Date(reference.getFullYear(), reference.getMonth(), dueDay, 12, 0, 0),
+        "yyyy-MM-dd",
+      );
+      first = await entriesRepo.create({
+        name: input.name,
+        description: input.description,
+        amount: input.amount,
+        dueDate: fallbackDueDate,
+        paymentDate: null,
+        type: input.type,
+        status: "pending",
+        responsible: input.responsible,
+        category: input.category,
+        notes: `Todo dia ${dueDay}`,
+        commitmentKind: "recurring",
+        recurringExpenseId: recurring.id,
+        installmentPlanId: null,
+        installmentNumber: null,
+        installmentCount: null,
+      });
+    }
+
+    return first;
   }
 
   return entriesRepo.create({
@@ -86,7 +120,7 @@ export async function createCommitment(
     description: input.description,
     amount: input.amount,
     dueDate: input.dueDate,
-    paymentDate: input.status === "paid" ? input.paymentDate ?? input.dueDate : input.paymentDate,
+    paymentDate: input.status === "paid" ? (input.paymentDate ?? input.dueDate) : input.paymentDate,
     type: input.type,
     status: input.status,
     responsible: input.responsible,

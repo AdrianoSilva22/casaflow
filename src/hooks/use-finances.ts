@@ -10,6 +10,7 @@ import {
   fetchMonthSummary,
   fetchPaymentHistory,
   fetchRecurring,
+  fetchMonthlyReport,
   payFinance,
   updateFinance,
   updateRecurringStatus,
@@ -57,7 +58,8 @@ export function useFinanceMutations() {
   });
 
   const update = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: Partial<FinancialEntryDraft> }) => updateFinance(id, input),
+    mutationFn: ({ id, input }: { id: string; input: Partial<FinancialEntryDraft> }) =>
+      updateFinance(id, input),
     onSuccess: invalidate,
   });
 
@@ -80,7 +82,8 @@ export function useRecurring() {
 export function useRecurringMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: RecurringStatus }) => updateRecurringStatus(id, status),
+    mutationFn: ({ id, status }: { id: string; status: RecurringStatus }) =>
+      updateRecurringStatus(id, status),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["recurring"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -100,5 +103,12 @@ export function usePaymentHistory(month?: string) {
   return useQuery({
     queryKey: ["history", month],
     queryFn: () => fetchPaymentHistory(month),
+  });
+}
+
+export function useMonthlyReport(month: string) {
+  return useQuery({
+    queryKey: ["monthly-report", month],
+    queryFn: () => fetchMonthlyReport(month),
   });
 }

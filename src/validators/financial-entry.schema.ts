@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { CATEGORIES, ENTRY_STATUSES, ENTRY_TYPES, RESPONSIBLES } from "@/domain/value-objects/enums";
+import {
+  CATEGORIES,
+  ENTRY_STATUSES,
+  ENTRY_TYPES,
+  RESPONSIBLES,
+} from "@/domain/value-objects/enums";
 import { COMMITMENT_KINDS, RECURRING_STATUSES } from "@/domain/value-objects/commitments";
 
 export const financialEntrySchema = z
@@ -15,29 +20,64 @@ export const financialEntrySchema = z
     status: z.enum(ENTRY_STATUSES),
     notes: z.string().max(280, "Observação muito longa").optional().or(z.literal("")),
     commitmentKind: z.enum(COMMITMENT_KINDS),
-    dueDay: z.coerce.number().min(1).max(31).optional(),
-    installmentCount: z.coerce.number().min(2).max(60).optional(),
-    totalAmount: z.coerce.number().positive().optional(),
+    dueDay: z.coerce.number().optional().nullable(),
+    installmentCount: z.coerce.number().optional().nullable(),
+    totalAmount: z.coerce.number().min(0).optional().nullable(),
   })
   .superRefine((value, ctx) => {
-    if (value.commitmentKind === "once" && !value.dueDate) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["dueDate"], message: "Informe o vencimento" });
+    if (value.commitmentKind === "once") {
+      if (!value.dueDate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["dueDate"],
+          message: "Informe a data de vencimento",
+        });
+      }
+      if (value.amount <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["amount"],
+          message: "Informe um valor maior que zero",
+        });
+      }
     }
-    if (value.commitmentKind === "once" && value.amount <= 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["amount"], message: "Informe um valor maior que zero" });
-    }
-    if (value.commitmentKind === "recurring" && !value.dueDay) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["dueDay"], message: "Informe o dia de vencimento" });
+    if (value.commitmentKind === "recurring") {
+      if (!value.dueDay || value.dueDay < 1 || value.dueDay > 31) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["dueDay"],
+          message: "Informe o dia de vencimento (1 a 31)",
+        });
+      }
+      if (value.amount <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["amount"],
+          message: "Informe um valor maior que zero",
+        });
+      }
     }
     if (value.commitmentKind === "installment") {
       if (!value.dueDate) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["dueDate"], message: "Informe o primeiro vencimento" });
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["dueDate"],
+          message: "Informe a data do primeiro vencimento",
+        });
       }
       if (!value.installmentCount || value.installmentCount < 2) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["installmentCount"], message: "Informe a quantidade de parcelas" });
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["installmentCount"],
+          message: "Informe a quantidade de parcelas (mínimo 2)",
+        });
       }
-      if (!value.totalAmount && value.amount <= 0) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["totalAmount"], message: "Informe o valor total" });
+      if ((!value.totalAmount || value.totalAmount <= 0) && (!value.amount || value.amount <= 0)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["totalAmount"],
+          message: "Informe o valor total do parcelamento",
+        });
       }
     }
   });

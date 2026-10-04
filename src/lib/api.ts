@@ -43,9 +43,11 @@ export function fetchFinances(input: ListFinancialEntriesInput = {}) {
   if (filters.search) params.set("search", filters.search);
   if (filters.category && filters.category !== "all") params.set("category", filters.category);
   if (filters.status && filters.status !== "all") params.set("status", filters.status);
-  if (filters.responsible && filters.responsible !== "all") params.set("responsible", filters.responsible);
+  if (filters.responsible && filters.responsible !== "all")
+    params.set("responsible", filters.responsible);
   if (filters.type && filters.type !== "all") params.set("type", filters.type);
-  if (filters.commitmentKind && filters.commitmentKind !== "all") params.set("commitmentKind", filters.commitmentKind);
+  if (filters.commitmentKind && filters.commitmentKind !== "all")
+    params.set("commitmentKind", filters.commitmentKind);
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
   if (input.sort) params.set("sort", input.sort);
@@ -133,4 +135,10 @@ export function fetchCalendar(from: string, to: string) {
     sort: "dueDate",
     direction: "asc",
   });
+}
+
+export function fetchMonthlyReport(month: string) {
+  return request<import("@/domain/services/monthly-report").MonthlyReportResult>(
+    `/api/reports/monthly?month=${month}`,
+  );
 }

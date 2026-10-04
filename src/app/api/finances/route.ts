@@ -7,7 +7,10 @@ import { syncCommitments } from "@/application/use-cases/sync-commitments";
 import { financialEntrySchema } from "@/validators/financial-entry.schema";
 import type { Category, EntryStatus, EntryType, Responsible } from "@/domain/value-objects/enums";
 import type { CommitmentKind } from "@/domain/value-objects/commitments";
-import type { FinancialEntrySort, SortDirection } from "@/application/ports/financial-entry.repository";
+import type {
+  FinancialEntrySort,
+  SortDirection,
+} from "@/application/ports/financial-entry.repository";
 import { apiError } from "@/lib/api-route";
 
 export async function GET(request: Request) {
@@ -39,24 +42,32 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const parsed = financialEntrySchema.safeParse(await request.json());
-  if (!parsed.success) {
-    return NextResponse.json({ message: parsed.error.issues[0]?.message ?? "Dados inválidos." }, { status: 400 });
+  try {
+    const body = await request.json();
+    const parsed = financialEntrySchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { message: parsed.error.issues[0]?.message ?? "Dados inválidos." },
+        { status: 400 },
+      );
+    }
+
+    const created = await createCommitment(
+      financialEntryRepository,
+      commitmentsRepository,
+      {
+        ...parsed.data,
+        description: parsed.data.description ?? "",
+        notes: parsed.data.notes ?? "",
+        dueDate: parsed.data.dueDate || new Date().toISOString().slice(0, 10),
+        paymentDate: parsed.data.paymentDate || null,
+        commitmentKind: parsed.data.commitmentKind,
+      },
+      new Date(),
+    );
+
+    return NextResponse.json(created, { status: 201 });
+  } catch (error) {
+    return apiError(error, "Erro ao criar lançamento.");
   }
-
-  const created = await createCommitment(
-    financialEntryRepository,
-    commitmentsRepository,
-    {
-      ...parsed.data,
-      description: parsed.data.description ?? "",
-      notes: parsed.data.notes ?? "",
-      dueDate: parsed.data.dueDate || new Date().toISOString().slice(0, 10),
-      paymentDate: parsed.data.paymentDate || null,
-      commitmentKind: parsed.data.commitmentKind,
-    },
-    new Date(),
-  );
-
-  return NextResponse.json(created, { status: 201 });
 }

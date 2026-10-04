@@ -2,7 +2,11 @@ import { addMonths, format, startOfMonth } from "date-fns";
 import type { FinancialEntry } from "@/domain/entities/financial-entry";
 import type { InstallmentPlan } from "@/domain/entities/installment-plan";
 import type { RecurringExpense } from "@/domain/entities/recurring-expense";
-import { alertKind, isLastInstallment, resolveDisplayStatus } from "@/domain/services/display-status";
+import {
+  alertKind,
+  isLastInstallment,
+  resolveDisplayStatus,
+} from "@/domain/services/display-status";
 import { summarizePlan } from "@/domain/services/installments";
 import { resolveEntryStatus } from "@/domain/services/entry-status";
 import { monthKey } from "@/lib/format";
@@ -54,9 +58,14 @@ export function buildCommitmentInsights(
   recurring: RecurringExpense[],
   reference = new Date(),
 ): CommitmentInsights {
-  const entries = rawEntries.map((entry) => ({ ...entry, status: resolveEntryStatus(entry, reference) }));
+  const entries = rawEntries.map((entry) => ({
+    ...entry,
+    status: resolveEntryStatus(entry, reference),
+  }));
   const monthPrefix = format(reference, "yyyy-MM");
-  const inMonth = entries.filter((entry) => entry.dueDate.startsWith(monthPrefix) && entry.type === "expense");
+  const inMonth = entries.filter(
+    (entry) => entry.dueDate.startsWith(monthPrefix) && entry.type === "expense",
+  );
 
   const paid = inMonth.filter((entry) => entry.status === "paid");
   const pending = inMonth.filter((entry) => entry.status === "pending");
@@ -71,8 +80,12 @@ export function buildCommitmentInsights(
       entry.status !== "cancelled",
   );
 
-  const nextInstallment = [...unpaidInstallments].sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
-  const mostExpensive = [...activeSummaries].sort((a, b) => b.installmentAmount - a.installmentAmount)[0];
+  const nextInstallment = [...unpaidInstallments].sort((a, b) =>
+    a.dueDate.localeCompare(b.dueDate),
+  )[0];
+  const mostExpensive = [...activeSummaries].sort(
+    (a, b) => b.installmentAmount - a.installmentAmount,
+  )[0];
   const activeRecurring = recurring.filter((item) => item.status === "active");
 
   const alerts: CommitmentAlert[] = entries
@@ -102,7 +115,8 @@ export function buildCommitmentInsights(
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
     .slice(0, 8);
 
-  const projection = (months: number) => buildProjection(entries, activeRecurring, reference, months);
+  const projection = (months: number) =>
+    buildProjection(entries, activeRecurring, reference, months);
 
   return {
     paidCount: paid.length,
@@ -112,7 +126,9 @@ export function buildCommitmentInsights(
     pendingAmount: roundMoney(pending.reduce((sum, entry) => sum + entry.amount, 0)),
     overdueAmount: roundMoney(overdue.reduce((sum, entry) => sum + entry.amount, 0)),
     predictedTotal: roundMoney(
-      inMonth.filter((entry) => entry.status !== "cancelled").reduce((sum, entry) => sum + entry.amount, 0),
+      inMonth
+        .filter((entry) => entry.status !== "cancelled")
+        .reduce((sum, entry) => sum + entry.amount, 0),
     ),
     activePlans: activeSummaries.length,
     remainingInstallments: unpaidInstallments.length,
@@ -174,18 +190,29 @@ export interface MonthSummary {
   overdueCount: number;
   overdueAmount: number;
   predictedTotal: number;
+  totalIncome: number;
+  incomeCount: number;
   items: Array<FinancialEntry & { displayStatus: ReturnType<typeof resolveDisplayStatus> }>;
   installments: FinancialEntry[];
   future: Array<FinancialEntry & { displayStatus: ReturnType<typeof resolveDisplayStatus> }>;
 }
 
-export function monthSummary(entries: FinancialEntry[], month: string, reference = new Date()): MonthSummary {
+export function monthSummary(
+  entries: FinancialEntry[],
+  month: string,
+  reference = new Date(),
+): MonthSummary {
   const resolved = entries.map((entry) => ({
     ...entry,
     status: resolveEntryStatus(entry, reference),
     displayStatus: resolveDisplayStatus(entry, reference),
   }));
-  const inMonth = resolved.filter((entry) => entry.dueDate.startsWith(month) && entry.type === "expense");
+  const inMonth = resolved.filter(
+    (entry) => entry.dueDate.startsWith(month) && entry.type === "expense",
+  );
+  const inMonthIncomes = resolved.filter(
+    (entry) => entry.dueDate.startsWith(month) && entry.type === "income",
+  );
   const paid = inMonth.filter((entry) => entry.status === "paid");
   const pending = inMonth.filter((entry) => entry.status === "pending");
   const overdue = inMonth.filter((entry) => entry.status === "overdue");
@@ -200,7 +227,17 @@ export function monthSummary(entries: FinancialEntry[], month: string, reference
     pendingAmount: roundMoney(pending.reduce((sum, entry) => sum + entry.amount, 0)),
     overdueCount: overdue.length,
     overdueAmount: roundMoney(overdue.reduce((sum, entry) => sum + entry.amount, 0)),
-    predictedTotal: roundMoney(inMonth.filter((entry) => entry.status !== "cancelled").reduce((sum, entry) => sum + entry.amount, 0)),
+    predictedTotal: roundMoney(
+      inMonth
+        .filter((entry) => entry.status !== "cancelled")
+        .reduce((sum, entry) => sum + entry.amount, 0),
+    ),
+    totalIncome: roundMoney(
+      inMonthIncomes
+        .filter((entry) => entry.status !== "cancelled")
+        .reduce((sum, entry) => sum + entry.amount, 0),
+    ),
+    incomeCount: inMonthIncomes.length,
     items: inMonth.sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
     installments,
     future,

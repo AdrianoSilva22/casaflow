@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Button } from "@/components/ui/button";
@@ -13,28 +14,46 @@ export function FinanceEditor({ id }: { id?: string }) {
   const { data, isLoading } = useFinance(id);
   const { create, update, remove, pay } = useFinanceMutations();
   const editing = Boolean(id);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   async function handleSubmit(values: FinancialEntryFormValues) {
-    if (editing && id) {
-      await update.mutateAsync({
-        id,
-        input: {
-          name: values.name,
-          description: values.description ?? "",
-          amount: values.amount,
-          category: values.category,
-          dueDate: values.dueDate || data?.dueDate || "",
-          paymentDate: values.paymentDate || null,
-          responsible: values.responsible,
-          type: values.type,
-          status: values.status,
-          notes: values.notes ?? "",
-        },
-      });
-    } else {
-      await create.mutateAsync(values);
+    try {
+      setErrorMsg(null);
+      if (editing && id) {
+        await update.mutateAsync({
+          id,
+          input: {
+            name: values.name,
+            description: values.description ?? "",
+            amount: values.amount,
+            category: values.category,
+            dueDate: values.dueDate || data?.dueDate || new Date().toISOString().slice(0, 10),
+            paymentDate: values.paymentDate || null,
+            responsible: values.responsible,
+            type: values.type,
+            status: values.status,
+            notes: values.notes ?? "",
+          },
+        });
+      } else {
+        await create.mutateAsync(values);
+      }
+      router.push(
+        values.commitmentKind === "installment"
+          ? "/parcelamentos"
+          : values.commitmentKind === "recurring"
+            ? "/recorrentes"
+            : "/financas",
+      );
+      router.refresh();
+    } catch (err: unknown) {
+      console.error("Erro ao salvar lançamento:", err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Não foi possível salvar o lançamento. Verifique os dados e tente novamente.";
+      setErrorMsg(message);
     }
-    router.push(values.commitmentKind === "installment" ? "/parcelamentos" : values.commitmentKind === "recurring" ? "/recorrentes" : "/financas");
   }
 
   return (
@@ -43,6 +62,11 @@ export function FinanceEditor({ id }: { id?: string }) {
         title={editing ? "Editar finança" : "Nova finança"}
         subtitle="Cadastro rápido, pensado para o celular"
       />
+      {errorMsg ? (
+        <div className="rounded-2xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
+          <strong>Atenção:</strong> {errorMsg}
+        </div>
+      ) : null}
       <Card>
         {editing && isLoading ? (
           <p className="text-sm text-muted-foreground">Carregando lançamento...</p>
