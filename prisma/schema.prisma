@@ -1,0 +1,271 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  owner
+  member
+
+  @@map("user_role")
+}
+
+enum EntryType {
+  income
+  expense
+
+  @@map("entry_type")
+}
+
+enum EntryStatus {
+  pending
+  paid
+  overdue
+  cancelled
+
+  @@map("entry_status")
+}
+
+enum Responsible {
+  adriano
+  adrielle
+  both
+
+  @@map("responsible")
+}
+
+enum CommitmentKind {
+  once
+  recurring
+  installment
+
+  @@map("commitment_kind")
+}
+
+enum RecurringStatus {
+  active
+  inactive
+  closed
+
+  @@map("recurring_status")
+}
+
+enum PlanStatus {
+  active
+  closed
+
+  @@map("plan_status")
+}
+
+enum NotificationChannel {
+  push
+  email
+  whatsapp
+
+  @@map("notification_channel")
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+
+  @@map("notification_status")
+}
+
+model Family {
+  id        String   @id @default(cuid())
+  name      String
+  currency  String   @default("BRL")
+  locale    String   @default("pt-BR")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users              User[]
+  categories         Category[]
+  settings           Settings?
+  recurringExpenses  RecurringExpense[]
+  installmentPlans   InstallmentPlan[]
+  financialEntries   FinancialEntry[]
+  paymentHistory     PaymentHistory[]
+  notifications      Notification[]
+
+  @@map("families")
+}
+
+model User {
+  id             String   @id @default(cuid())
+  familyId       String   @map("family_id")
+  name           String
+  email          String   @unique
+  username       String?  @unique
+  passwordHash   String   @map("password_hash")
+  role           UserRole @default(member)
+  avatarInitials String   @map("avatar_initials")
+  color          String
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@map("users")
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  familyId  String?  @map("family_id")
+  name      String
+  slug      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  family Family? @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, slug])
+  @@index([slug])
+  @@map("categories")
+}
+
+model Settings {
+  id        String   @id @default(cuid())
+  familyId  String   @unique @map("family_id")
+  theme     String   @default("system")
+  locale    String   @default("pt-BR")
+  currency  String   @default("BRL")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@map("settings")
+}
+
+model RecurringExpense {
+  id          String          @id @default(cuid())
+  familyId    String          @map("family_id")
+  name        String
+  description String          @default("")
+  amount      Decimal         @db.Decimal(12, 2)
+  dueDay      Int             @map("due_day")
+  category    String
+  responsible Responsible
+  status      RecurringStatus @default(active)
+  startedAt   DateTime        @db.Date @map("started_at")
+  endedAt     DateTime?       @db.Date @map("ended_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  family           Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  entries          FinancialEntry[]
+  paymentHistory   PaymentHistory[]
+
+  @@index([familyId])
+  @@index([status])
+  @@map("recurring_expenses")
+}
+
+model InstallmentPlan {
+  id                 String      @id @default(cuid())
+  familyId           String      @map("family_id")
+  name               String
+  description        String      @default("")
+  totalAmount        Decimal     @map("total_amount") @db.Decimal(12, 2)
+  installmentCount   Int         @map("installment_count")
+  installmentAmount  Decimal     @map("installment_amount") @db.Decimal(12, 2)
+  firstDueDate       DateTime    @map("first_due_date") @db.Date
+  responsible        Responsible
+  category           String
+  status             PlanStatus  @default(active)
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+
+  family           Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  entries          FinancialEntry[]
+  paymentHistory   PaymentHistory[]
+
+  @@index([familyId])
+  @@index([status])
+  @@map("installment_plans")
+}
+
+model FinancialEntry {
+  id                 String         @id @default(cuid())
+  familyId           String         @map("family_id")
+  name               String
+  description        String         @default("")
+  amount             Decimal        @db.Decimal(12, 2)
+  dueDate            DateTime       @map("due_date") @db.Date
+  paymentDate        DateTime?      @map("payment_date") @db.Date
+  type               EntryType
+  status             EntryStatus    @default(pending)
+  responsible        Responsible
+  category           String
+  notes              String         @default("")
+  commitmentKind     CommitmentKind @default(once) @map("commitment_kind")
+  recurringExpenseId String?        @map("recurring_expense_id")
+  installmentPlanId  String?        @map("installment_plan_id")
+  installmentNumber  Int?           @map("installment_number")
+  installmentCount   Int?           @map("installment_count")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  family           Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  recurringExpense RecurringExpense? @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
+  installmentPlan  InstallmentPlan?  @relation(fields: [installmentPlanId], references: [id], onDelete: SetNull)
+  paymentHistory   PaymentHistory[]
+  notifications    Notification[]
+
+  @@index([familyId])
+  @@index([dueDate])
+  @@index([status])
+  @@index([type])
+  @@index([familyId, dueDate])
+  @@map("financial_entries")
+}
+
+model PaymentHistory {
+  id                 String         @id @default(cuid())
+  familyId           String         @map("family_id")
+  entryId            String         @map("entry_id")
+  name               String
+  amount             Decimal        @db.Decimal(12, 2)
+  paidAt             DateTime       @map("paid_at") @db.Date
+  monthKey           String         @map("month_key")
+  kind               CommitmentKind
+  installmentLabel   String?        @map("installment_label")
+  recurringExpenseId String?        @map("recurring_expense_id")
+  installmentPlanId  String?        @map("installment_plan_id")
+  createdAt          DateTime       @default(now()) @map("created_at")
+
+  family           Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  entry            FinancialEntry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  recurringExpense RecurringExpense? @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
+  installmentPlan  InstallmentPlan?  @relation(fields: [installmentPlanId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+  @@index([monthKey])
+  @@index([entryId])
+  @@map("payment_history")
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  familyId  String              @map("family_id")
+  entryId   String?             @map("entry_id")
+  channel   NotificationChannel
+  status    NotificationStatus  @default(pending)
+  title     String
+  body      String
+  sentAt    DateTime?           @map("sent_at")
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  family Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  entry  FinancialEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+  @@map("notifications")
+}
