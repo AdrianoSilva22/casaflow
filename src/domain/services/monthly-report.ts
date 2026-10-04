@@ -3,6 +3,7 @@ import type { InstallmentPlan } from "@/domain/entities/installment-plan";
 import type { RecurringExpense } from "@/domain/entities/recurring-expense";
 import type { Responsible } from "@/domain/value-objects/enums";
 import { AVAILABLE_MONTHS } from "@/constants/months";
+import { formatMonthYear } from "@/lib/format";
 
 export interface MonthlyReportItem {
   id: string;

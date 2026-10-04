@@ -19,9 +19,9 @@ export interface CreateCommitmentInput {
   status: "pending" | "paid" | "overdue" | "cancelled";
   notes: string;
   commitmentKind: CommitmentKind;
-  dueDay?: number;
-  installmentCount?: number;
-  totalAmount?: number;
+  dueDay?: number | null;
+  installmentCount?: number | null;
+  totalAmount?: number | null;
 }
 
 export async function createCommitment(
